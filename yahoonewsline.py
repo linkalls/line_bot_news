@@ -61,6 +61,10 @@ def handle_message(event):
         elif user_message.startswith('@brave'):
             search_word = user_message[len('@brave'):].strip()
             search_and_send_brave_search(search_word, event)
+            # '@bing'という単語で始まるメッセージを処理
+        elif user_message.startswith('@bing'):
+            search_word = user_message[len('@bing'):].strip()
+            search_and_send_bing_search(search_word, event)
 
     # 個人LINEの場合
     elif source_type == 'user':
@@ -72,6 +76,10 @@ def handle_message(event):
         elif user_message.startswith('@brave'):
             search_word = user_message[len('@brave'):].strip()
             search_and_send_brave_search(search_word, event)
+            # '@bing'という単語で始まるメッセージを処理
+        elif user_message.startswith('@bing'):
+            search_word = user_message[len('@bing'):].strip()
+            search_and_send_bing_search(search_word, event)
 
         # '@googleと@braveがない場合は Yahoo News を検索
         else:
@@ -135,10 +143,13 @@ def search_and_send_google_news(search_word, event):
 def search_and_send_brave_search(search_word, event):
     # Brave SearchのURLを作成
     brave_search_url = f'https://search.brave.com/search?q={
-        search_word}&country=JP&lang=ja'
+        urllib.parse.quote(search_word)}&country=JP&lang=ja'
 
-    # リクエストを送信し、レスポンスを取得
-    response = requests.get(brave_search_url)
+# リクエストを送信し、レスポンスを取得
+    headers = {
+        'Accept-Encoding': 'gzip, deflate'
+    }
+    response = requests.get(brave_search_url, headers=headers)
 
     # HTMLを解析
     soup = BeautifulSoup(response.text, 'html.parser')
@@ -160,6 +171,41 @@ def search_and_send_brave_search(search_word, event):
     # LINE Botを通じてメッセージを送信
     send_messages_to_line(messages, event)
 
+
+def search_and_send_bing_search(search_word, event):
+    # Bing検索のURLを作成
+    bing_search_url = f'https://www.bing.com/search?q={urllib.parse.quote(search_word)}'
+
+    # リクエストを送信し、レスポンスを取得
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+    }
+    response = requests.get(bing_search_url, headers=headers)
+
+    # HTMLを解析
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    # 結果の一部を抽出（Bingの検索結果のHTML構造に基づく）
+    h2_results = soup.find_all('h2')
+
+    # LINEに送信するメッセージを作成
+    if h2_results:
+        messages = ["Bing検索の結果を送信します。"]
+        for h2 in h2_results[:4]:  # 最初の4件のみ処理
+            link_element = h2.find('a')
+            if link_element:
+                # タイトルとURLを取得
+                title = link_element.get_text(strip=True)
+                link = link_element['href']
+                # 取得したタイトルとURLをコンソールに出力
+              #  print(f"Title: {title}, URL: {link}")
+                # タイトルとURLの間に改行を挿入してメッセージに追加
+                messages.append(f"{title}\n{link}")
+    else:
+        messages = ["Bing検索の結果が見つかりませんでした。"]
+
+    # LINE Botを通じてメッセージを送信
+    send_messages_to_line(messages, event)
 
 # LINEにメッセージを送信する関数
 
