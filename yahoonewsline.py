@@ -134,7 +134,8 @@ def search_and_send_google_news(search_word, event):
 
 def search_and_send_brave_search(search_word, event):
     # Brave SearchのURLを作成
-    brave_search_url = f'https://search.brave.com/search?q={search_word}'
+    brave_search_url = f'https://search.brave.com/search?q={
+        search_word}&country=JP&lang=ja'
 
     # リクエストを送信し、レスポンスを取得
     response = requests.get(brave_search_url)
