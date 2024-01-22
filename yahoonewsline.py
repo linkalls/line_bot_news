@@ -8,6 +8,8 @@ import requests
 from bs4 import BeautifulSoup
 import urllib.parse
 import os
+import json
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -65,6 +67,9 @@ def handle_message(event):
         elif user_message.startswith('@bing'):
             search_word = user_message[len('@bing'):].strip()
             search_and_send_bing_search(search_word, event)
+            # '@eh'という単語で始まるメッセージを処理
+        elif user_message.startswith('@eh'):
+            fetch_and_send_earthquake_info(event)
 
     # 個人LINEの場合
     elif source_type == 'user':
@@ -80,6 +85,9 @@ def handle_message(event):
         elif user_message.startswith('@bing'):
             search_word = user_message[len('@bing'):].strip()
             search_and_send_bing_search(search_word, event)
+            # '@eh'という単語で始まるメッセージを処理
+        elif user_message.startswith('@eh'):
+            fetch_and_send_earthquake_info(event)
 
         # '@googleと@braveがない場合は Yahoo News を検索
         else:
@@ -174,7 +182,8 @@ def search_and_send_brave_search(search_word, event):
 
 def search_and_send_bing_search(search_word, event):
     # Bing検索のURLを作成
-    bing_search_url = f'https://www.bing.com/search?q={urllib.parse.quote(search_word)}'
+    bing_search_url = f'https://www.bing.com/search?q={
+        urllib.parse.quote(search_word)}'
 
     # リクエストを送信し、レスポンスを取得
     headers = {
@@ -206,6 +215,52 @@ def search_and_send_bing_search(search_word, event):
 
     # LINE Botを通じてメッセージを送信
     send_messages_to_line(messages, event)
+
+
+# 地震情報を取得してLINEに送信する関数
+def fetch_and_send_earthquake_info(event):
+    earthquake_url = 'https://www.jma.go.jp/bosai/quake/data/list.json'
+  # print(f"Fetching earthquake data from {earthquake_url}")  # デバッグ情報を出力
+    response = requests.get(earthquake_url)
+
+    if response.status_code == 200:
+    #   print("Successfully retrieved earthquake data")  # デバッグ情報を出力
+        earthquake_data = json.loads(response.text)
+        messages = ["最新の地震情報を送信します。"]  # 最初のメッセージを追加
+
+        # 地震情報のリストから最新の情報を取得
+        latest_earthquake = earthquake_data[0]
+        title = latest_earthquake['ttl']
+        time = latest_earthquake['at']
+        magnitude = latest_earthquake['mag']
+        max_intensity = latest_earthquake['maxi']
+        epicenter = latest_earthquake['anm']  # 震央地名に対応するキー
+
+        # 日時のフォーマットを変換
+        try:
+            time = datetime.strptime(time, '%Y-%m-%dT%H:%M:%S+09:00')
+            formatted_time = time.strftime('%Y年%m月%d日 %H時%M分')
+        except ValueError as e:
+      #     print(f"Error parsing date and time: {e}")  # デバッグ情報を出力
+            formatted_time = time  # パースに失敗した場合は元の文字列を使用
+
+        # 地震情報の詳細メッセージを追加
+        message = (
+            f"タイトル: {title}\n"
+            f"震央地名: {epicenter}\n"
+            f"発生時刻: {formatted_time}\n"
+            f"マグニチュード: {magnitude}\n"
+            f"最大震度: {max_intensity}"
+        )
+        messages.append(message)  # 地震情報の詳細を追加
+
+        # LINE Botを通じてメッセージを送信
+        send_messages_to_line(messages, event)
+    else:
+        #print(f"Failed to retrieve earthquake data, status code: {response.status_code}")  # デバッグ情報を出力
+        send_messages_to_line(["地震情報の取得に失敗しました。"], event)
+
+
 
 # LINEにメッセージを送信する関数
 
