@@ -67,6 +67,11 @@ def handle_message(event):
         elif user_message.startswith('@bing'):
             search_word = user_message[len('@bing'):].strip()
             search_and_send_bing_search(search_word, event)
+
+        elif user_message.startswith('@anime'):
+            anime_list = scrape_anime()
+            send_messages_to_line(anime_list, event)
+
             # '@eh'という単語で始まるメッセージを処理
         elif user_message.startswith('@eh'):
             fetch_and_send_earthquake_info(event)
@@ -89,10 +94,36 @@ def handle_message(event):
         elif user_message.startswith('@eh'):
             fetch_and_send_earthquake_info(event)
 
+        elif user_message.startswith('@anime'):
+             anime_list = scrape_anime()
+             send_messages_to_line(anime_list, event)
+
         # '@googleと@braveがない場合は Yahoo News を検索
         else:
             search_word = user_message
             search_and_send_yahoo_news(search_word, event)
+
+
+# アニメ情報をスクレイピングする関数
+
+def scrape_anime():
+    url = "https://myanimelist.net/topanime.php?type=airing"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    anime_list = []
+
+    for anime in soup.find_all('tr', class_='ranking-list'):
+        rank = anime.find('td', class_='rank ac').find('span').text.strip()
+        title = anime.find('a', class_='hoverinfo_trigger').text.strip()
+        anime_url = anime.find('a', class_='hoverinfo_trigger')['href']
+        anime_list.append(f"{rank} {title}\n{anime_url}")
+
+    if not anime_list:
+        return ["見つかりませんでした"]
+    else:
+        return anime_list
+
 
 # Yahoo Newsの検索とメッセージ送信を行う関数
 
